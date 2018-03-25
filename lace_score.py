@@ -1,5 +1,6 @@
 import argparse
-from pyspark.sql import SparkSession
+from pyspark.sql import SparkSession, functions
+from pyspark.sql.types import IntegerType
 
 
 def main(spark, measure):
@@ -18,6 +19,17 @@ def main(spark, measure):
     data = data.join(codes, 'diagnosis_code')
     data = data.filter(data.measure_name == measure_name)
 
+    # Convert comorbidity columns to ints and sum them
+    com_cols = comorb_map.get(measure_name, [])
+    for col in com_cols:
+        data = data.withColumn(col, (functions.upper(data[col]) == functions.lit('YES')).cast(IntegerType()))
+    data = data.withColumn('ComorbidityScore', sum(data[x] for x in com_cols))
+
+    # Reduce dataframe to relevant columns
+    score_cols = ['LengthofStay', 'ED_visits', 'ComorbidityScore'] #['LengthOfStay', 'EmergencyAdmission', 'EDVisit', 'ComorbidityScore']
+    data = data.select(['encounter_id', 'patient_nbr'] + score_cols)
+
+    data.show()
     return data.count()
 
 
