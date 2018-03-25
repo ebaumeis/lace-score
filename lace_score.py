@@ -21,42 +21,45 @@ def main(spark, measure):
     data = data.join(codes, 'diagnosis_code')
     data = data.filter(data.measure_name == measure_name)
 
-    # Convert comorbidity columns to ints and sum them
-    com_cols = comorb_map.get(measure_name, [])
-    for col in com_cols:
-        data = data.withColumn(col, (functions.upper(data[col]) == functions.lit('YES')).cast(IntegerType()))
-    data = data.withColumn('ComorbidityScore', sum(data[x] for x in com_cols))
+    if data.count() > 0:
+        # Convert comorbidity columns to ints and sum them
+        com_cols = comorb_map.get(measure_name, [])
+        for col in com_cols:
+            data = data.withColumn(col, (functions.upper(data[col]) == functions.lit('YES')).cast(IntegerType()))
+        data = data.withColumn('ComorbidityScore', sum(data[x] for x in com_cols))
 
-    # Reduce dataframe to relevant columns
-    score_cols = ['LengthofStay', 'ED_visits', 'ComorbidityScore'] #['LengthofStay', 'EmergencyAdmission', 'ED_visits', 'ComorbidityScore']
-    data = data.select(['encounter_id', 'patient_nbr'] + score_cols)
+        # Reduce dataframe to relevant columns
+        score_cols = ['LengthofStay', 'ED_visits', 'ComorbidityScore'] #['LengthofStay', 'EmergencyAdmission', 'ED_visits', 'ComorbidityScore']
+        data = data.select(['encounter_id', 'patient_nbr'] + score_cols)
 
-    # Assign point values for each of the score columns
-    for col in score_cols:
-        pts_col = col + '_pts'
+        # Assign point values for each of the score columns
+        for col in score_cols:
+            pts_col = col + '_pts'
 
-        # Get ranges and point vals from range config
-        attr_range = range_map.get(col)
-        splits = [x[1] for x in attr_range] + [float("inf")]
-        pts = functions.array([functions.lit(x[0]) for x in attr_range])
+            # Get ranges and point vals from range config
+            attr_range = range_map.get(col)
+            splits = [x[1] for x in attr_range] + [float("inf")]
+            pts = functions.array([functions.lit(x[0]) for x in attr_range])
 
-        # Transform data with bucketizer
-        buckets = Bucketizer(splits=splits, inputCol=col, outputCol=pts_col)
-        data = buckets.transform(data)
+            # Transform data with bucketizer
+            buckets = Bucketizer(splits=splits, inputCol=col, outputCol=pts_col)
+            data = buckets.transform(data)
 
-        # Turn bucket numbers into point values
-        data = data.withColumn(pts_col, pts.getItem(data[pts_col].cast(IntegerType())))
+            # Turn bucket numbers into point values
+            data = data.withColumn(pts_col, pts.getItem(data[pts_col].cast(IntegerType())))
 
-    # # Add score for acute admissions
-    # data = data.withColumn('EmergencyAdmission_pts', 3*(functions.upper(data['EmergencyAdmission']) == functions.lit('YES')).cast(IntegerType()))
+        # # Add score for acute admissions
+        # data = data.withColumn('EmergencyAdmission_pts', 3*(functions.upper(data['EmergencyAdmission']) == functions.lit('YES')).cast(IntegerType()))
 
-    # Get LACE score for each row
-    data = data.withColumn('LACEScore', sum(data[x + '_pts'] for x in score_cols))
+        # Get LACE score for each row
+        data = data.withColumn('LACEScore', sum(data[x + '_pts'] for x in score_cols))
 
-    # Calculate ratio score
-    num = data.filter(data.LACEScore > 9).count()
-    denom = data.count()
-    return num / float(denom)
+        # Calculate ratio score
+        num = data.filter(data.LACEScore > 9).count()
+        denom = data.count()
+        return num / float(denom)
+    else:
+        return None
 
 
 if __name__ == '__main__':
@@ -70,4 +73,11 @@ if __name__ == '__main__':
     spark = SparkSession.builder.appName("LACE Score").getOrCreate()
     spark.sparkContext.setLogLevel("ERROR")
     score = main(spark, measure_name)
-    print score
+
+    # Print score output
+    print '\n'
+    if score:
+        print 'LACE Score for {0}: {1}'.format(measure_name, score)
+    else:
+        print 'Measure name {0} not found in dataset'.format(measure_name)
+    print '\n'
