@@ -53,8 +53,10 @@ def main(spark, measure):
     # Get LACE score for each row
     data = data.withColumn('LACEScore', sum(data[x + '_pts'] for x in score_cols))
 
-    data.show()
-    return data.count()
+    # Calculate ratio score
+    num = data.filter(data.LACEScore > 9).count()
+    denom = data.count()
+    return num / float(denom)
 
 
 if __name__ == '__main__':
@@ -67,4 +69,5 @@ if __name__ == '__main__':
     # Start spark session and call main
     spark = SparkSession.builder.appName("LACE Score").getOrCreate()
     spark.sparkContext.setLogLevel("ERROR")
-    print main(spark, measure_name)
+    score = main(spark, measure_name)
+    print score
