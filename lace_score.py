@@ -3,7 +3,18 @@ from pyspark.sql import SparkSession
 
 
 def main(spark, measure):
+    from extract import get_sample
+    from mapping import get_dx_codes, get_comorbidity_cols
 
+    sample_data = get_sample(spark)
+    sample_data.show()
+
+    dx_codes = get_dx_codes(spark)
+    dx_codes.show()
+
+    com_cols = get_comorbidity_cols(spark)
+    print com_cols
+    
     return measure
 
 
