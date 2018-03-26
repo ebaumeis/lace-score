@@ -6,5 +6,6 @@
 range_map = {
     'ED_visits': [(0, float("-inf")), (1, 1), (2, 2), (3, 3), (4, 4)],
     'LengthofStay': [(0, float("-inf")), (1, 1), (2, 2), (3, 3), (4, 4), (5, 7), (7, 14)],
-    'ComorbidityScore': [(0, float("-inf")), (1, 1), (2, 2), (3, 3), (5, 4)]
+    'ComorbidityScore': [(0, float("-inf")), (1, 1), (2, 2), (3, 3), (5, 4)],
+    'Inpatient_visits': [(0, float("-inf")), (3, 1)]
 }

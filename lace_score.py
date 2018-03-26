@@ -29,7 +29,7 @@ def main(spark, measure):
         data = data.withColumn('ComorbidityScore', sum(data[x] for x in com_cols))
 
         # Reduce dataframe to relevant columns
-        score_cols = ['LengthofStay', 'ED_visits', 'ComorbidityScore'] #['LengthofStay', 'EmergencyAdmission', 'ED_visits', 'ComorbidityScore']
+        score_cols = ['LengthofStay', 'ED_visits', 'ComorbidityScore', 'Inpatient_visits']
         data = data.select(['encounter_id', 'patient_nbr'] + score_cols)
 
         # Assign point values for each of the score columns
@@ -48,11 +48,10 @@ def main(spark, measure):
             # Turn bucket numbers into point values
             data = data.withColumn(pts_col, pts.getItem(data[pts_col].cast(IntegerType())))
 
-        # # Add score for acute admissions
-        # data = data.withColumn('EmergencyAdmission_pts', 3*(functions.upper(data['EmergencyAdmission']) == functions.lit('YES')).cast(IntegerType()))
-
         # Get LACE score for each row
         data = data.withColumn('LACEScore', sum(data[x + '_pts'] for x in score_cols))
+
+        data.show()
 
         # Calculate ratio score
         num = data.filter(data.LACEScore > 9).count()
