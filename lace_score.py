@@ -51,8 +51,6 @@ def main(spark, measure):
         # Get LACE score for each row
         data = data.withColumn('LACEScore', sum(data[x + '_pts'] for x in score_cols))
 
-        data.show()
-
         # Calculate ratio score
         num = data.filter(data.LACEScore > 9).count()
         denom = data.count()
